@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <ESP8266WebServer.h>
@@ -34,7 +35,7 @@ PubSubClient client(wifiClient);
 
 
 const char* ssid = "NET";
-const char* password = "xxxxxx";
+const char* password = "password";
 const char *software_version = "3.1";
 
 const uint8_t sdaPin = 5;
