@@ -8,15 +8,19 @@
 #include <SoftWire.h>
 #include <I2CSoftSlave.h>
 #include <PubSubClient.h>
+#include <AsyncDelay.h>
+
+static AsyncDelay timeout;
+
 
 #define MQTT_VERSION MQTT_VERSION_3_1_1
 
 // MQTT: ID, server IP, port, username and password
 const PROGMEM char* MQTT_CLIENT_ID = "bedroom_light1";
-const PROGMEM char* MQTT_SERVER_IP = "192.168.1.50";
+const PROGMEM char* MQTT_SERVER_IP = "192.168.1.24";
 const PROGMEM uint16_t MQTT_SERVER_PORT = 1883;
 const PROGMEM char* MQTT_USER = "sonoff";
-const PROGMEM char* MQTT_PASSWORD = "password";
+const PROGMEM char* MQTT_PASSWORD = "testpassword";
 
 // MQTT: topics
 const char* MQTT_LIGHT_STATE_TOPIC = "bedroom/light1/status";
@@ -226,6 +230,8 @@ void setup() {
   // init the MQTT connection
   client.setServer(MQTT_SERVER_IP, MQTT_SERVER_PORT);
   client.setCallback(callback);
+
+  timeout.start(5000, AsyncDelay::MILLIS);
   printf("Ready\n");
 }
 
@@ -287,25 +293,30 @@ uint8_t getLight() {
 
 }
 
+
 void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.println("INFO: Attempting MQTT connection...");
-    // Attempt to connect
-    if (client.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD)) {
-      Serial.println("INFO: connected");
-      // Once connected, publish an announcement...
-      publishLightState();
-      client.subscribe(MQTT_LIGHT_COMMAND_TOPIC);
-      client.subscribe(MQTT_LIGHT_BRIGHTNESS_COMMAND_TOPIC);
-    } else {
-      Serial.print("ERROR: failed, rc=");
-      Serial.print(client.state());
-      Serial.println("DEBUG: try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
+  if (timeout.isExpired()) {
+  
+    // Loop until we're reconnected
+    if (!client.connected()) {
+      Serial.println("INFO: Attempting MQTT connection...");
+      // Attempt to connect
+      if (client.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD)) {
+        Serial.println("INFO: connected");
+        // Once connected, publish an announcement...
+        publishLightState();
+        client.subscribe(MQTT_LIGHT_COMMAND_TOPIC);
+        client.subscribe(MQTT_LIGHT_BRIGHTNESS_COMMAND_TOPIC);
+      } else {
+        Serial.print("ERROR: failed, rc=");
+        Serial.print(client.state());
+        Serial.println("DEBUG: try again in 5 seconds");
+      }
     }
-  }
+
+    // Check again in 5 seconds
+    timeout.start(5000, AsyncDelay::MILLIS);
+  } 
 }
 
 int count = 0;
@@ -347,8 +358,9 @@ void loop() {
     count = 0;
   }
 
-  if (!client.connected()) {
-    reconnect();
-  }
+
+  reconnect();
+  
   client.loop();
+  
 }
